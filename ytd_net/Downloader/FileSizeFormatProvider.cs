@@ -42,21 +42,21 @@ namespace ytd.Downloader
             if ( size > OneGigaByte )
             {
                 size /= OneGigaByte;
-                suffix = "GB/sce";
+                suffix = "GB/sec";
             }
             else if ( size > OneMegaByte )
             {
                 size /= OneMegaByte;
-                suffix = "MB/sce";
+                suffix = "MB/sec";
             }
             else if ( size > OneKiloByte )
             {
                 size /= OneKiloByte;
-                suffix = "KB/sce";
+                suffix = "KB/sec";
             }
             else
             {
-                suffix = "Bytes/sce";
+                suffix = "Bytes/sec";
             }
 
             string precision = format.Substring(2);

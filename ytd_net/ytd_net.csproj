@@ -53,6 +53,7 @@
     <Compile Include="Downloader\FileDownloader.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="FileSize.cs" />
     <Compile Include="Downloader\FileSizeFormatProvider.cs" />
     <Compile Include="Downloader\Helper.cs" />
     <Compile Include="Options.cs" />

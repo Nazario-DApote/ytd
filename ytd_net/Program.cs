@@ -7,6 +7,8 @@ using System.IO;
 using System.ComponentModel;
 using System.Threading;
 using System.Collections.Specialized;
+using System.Drawing;
+using System.IO.Extensions;
 
 namespace ytd
 {
@@ -20,7 +22,9 @@ namespace ytd
         private static bool filelist;
         private static ManualResetEvent downloadDone;
         private static string fileName;
-        private static string size;
+        private static int videoWidth;
+        private static double videoSize;
+        private static string videoExtension;
 
         private static void Main(string[] args)
         {
@@ -30,7 +34,9 @@ namespace ytd
                 { "d|download", "download the video url and save to output.", v => { download = (v != null); } },
                 { "l|list", "consider the <url> parameter as a list of links.", v => { filelist = (v != null); } },
                 { "o|output=", "specify the output file name.", v => { fileName = v; } },
-                { "s|size=", "specify the preferred video size.", v => { size = v; } },
+                { "w|width=", "specify the preferred video width.", v => { Int32.TryParse(v, out videoWidth); } },
+                { "s|size=", "specify the preferred video file size.", v => { Double.TryParse(v, out videoSize); } },
+                { "e|ext=", "specify the preferred video file extension.", v => { videoExtension = v; } },
    	            { "v|verbose", "show verbose message.",  v => { ++verbose; } },
    	            { "h|?|help", "print the help.",  v => { help = (v != null); } },
                };
@@ -47,6 +53,9 @@ namespace ytd
                         throw new ArgumentException("Mandatory parameter missing!");
 
                     url = extra[0];
+
+                    if ( string.IsNullOrEmpty(videoExtension) )
+                        videoExtension = "flv";
                 }
 
             }
@@ -119,7 +128,7 @@ namespace ytd
 
         private static void DownloadVideo(string url, string fileName)
         {
-            Console.WriteLine("* Download YourTuve video");
+            Console.WriteLine("* Download YourTube video");
           
             Console.WriteLine("Fetching video informations ...");
             List<YouTubeVideoQuality> videoList = YouTubeDownloader.GetYouTubeVideoUrls(url);
@@ -127,39 +136,86 @@ namespace ytd
             {
                 downloadDone = new ManualResetEvent(false);
 
-                foreach ( var video in videoList )
+                YouTubeVideoQuality video = GetPreferred(videoList);
+
+                if ( video != null )
                 {
-                    if ( string.Compare(video.Extention, "mp4", true) == 0 )
+                    string fn = fileName;
+
+                    if ( string.IsNullOrEmpty(fn) )
+                        fn = string.Concat(video.VideoTitle, ".", video.Extention);
+
+                    Console.WriteLine("url: {0}", url);
+                    Console.WriteLine("fileName: {0}", fn);
+
+                    if ( File.Exists(fn) )
                     {
-                        string fn = fileName;
-
-                        if ( string.IsNullOrEmpty(fn) )
-                            fn = string.Concat(video.VideoTitle, ".mp4");
-
-                        Console.WriteLine("url: {0}", url);
-                        Console.WriteLine("fileName: {0}", fn);
-
-                        if ( File.Exists(fn) )
-                        {
-                            Console.Write("{0} already exists! Overwrite? (Y/n) ", fn);
-                            char res = ConsoleEx.ReadKey(5, 'y');
-                            if ( res.Equals('y') )
-                                File.Delete(fn);
-                            else
-                                return;
-                        }
-
-                        downloadDone.Reset();
-                        Console.WriteLine("* Downloading {0} => {1}", ConsoleEx.CompactPath(video.DownloadUrl, 40), ConsoleEx.CompactPath(fileName, 40));
-                        DownloadFile(video.DownloadUrl, fn);
-                        downloadDone.WaitOne();
+                        Console.Write("{0} already exists! Overwrite? (Y/n) ", fn);
+                        char res = ConsoleEx.ReadKey(5, 'y');
+                        if ( res.Equals('y') )
+                            File.Delete(fn);
+                        else
+                            return;
                     }
+
+                    downloadDone.Reset();
+                    Console.WriteLine("Video Title: {0}", video.VideoTitle);
+                    Console.WriteLine("File lenght: {0}", new FileSize(video.VideoSize).ToString(FileSizeUnit.B));
+                    Console.WriteLine("* Downloading {0} => {1}", ConsoleEx.CompactPath(video.DownloadUrl, 40), ConsoleEx.CompactPath(fileName, 40));
+                    DownloadFile(video.DownloadUrl, fn);
+                    downloadDone.WaitOne();
                 }
+                else
+                    Console.WriteLine("No video match conditions!");
             }
             else
             {
                 Console.WriteLine("The <url> specified doesn't contain videos");
             }
+        }
+
+        private static YouTubeVideoQuality GetPreferred(List<YouTubeVideoQuality> videoList)
+        {
+            YouTubeVideoQuality userPreferredVideo = null;
+
+            double videoDist = Double.MaxValue;
+            foreach ( var video in videoList )
+            {
+                if ( userPreferredVideo == null )
+                    userPreferredVideo = video;
+
+                if ( videoWidth > 0 || videoSize > 0 )
+                {
+                    double curVideoDist = GetVideoDistance(video);
+                    if ( videoDist > curVideoDist )
+                    {
+                        videoDist = curVideoDist;
+                        userPreferredVideo = video;
+                    }
+
+                    if ( videoDist == curVideoDist && string.Compare(video.Extention, videoExtension, true) == 0 )
+                        userPreferredVideo = video;
+                }
+                else if ( string.Compare(video.Extention, videoExtension, true) == 0 )
+                {
+                    userPreferredVideo = video;
+                }
+            }
+
+            return userPreferredVideo;
+        }
+
+        private static double GetVideoDistance(YouTubeVideoQuality video)
+        {
+            double f1 = 0.0;
+            if ( videoWidth > 0 )
+                f1 = Math.Pow(Math.Abs(video.Dimension.Width - videoWidth), 2);
+
+            double f2 = 0.0;
+            if ( videoSize > 0 )
+                f2 = Math.Pow(Math.Abs(video.VideoSize - videoSize), 2);
+
+            return Math.Sqrt(f1 + f2);
         }
 
         private static void DownloadFile(string url, string fileName)
@@ -172,11 +228,14 @@ namespace ytd
 
         private static void downloader_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            ConsoleEx.GetSyncObject.WaitOne();
+
             Console.ResetColor();
 
-            if(Console.CursorLeft != 0)
+            if ( Console.CursorLeft != 0 )
                 Console.WriteLine();
 
+            Console.WriteLine();
             FileDownloader downloader = sender as FileDownloader;
             if ( downloader != null )
             {
@@ -195,7 +254,7 @@ namespace ytd
                 {
                     int percent = e.ProgressPercentage > 100 ? 100 : e.ProgressPercentage;
                     string speed = String.Format(new FileSizeFormatProvider(), "{0:fs}", downloader.DownloadSpeed);
-                    string ETA = downloader.ETA == 0 ? "" : "  [ " + FormatLeftTime.Format(((long) downloader.ETA) * 1000) + " ]";
+                    string ETA = downloader.ETA == 0 ? "" : " [" + FormatLeftTime.Format(((long) downloader.ETA) * 1000) + "]";
                     ConsoleEx.RenderConsoleProgress(percent, '*', ConsoleColor.Green, string.Format("Downloaded {0}% {1}", percent, speed + ETA));
                 }
             }

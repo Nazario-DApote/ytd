@@ -1,0 +1,7 @@
+* Version 1.1.0.0
+- New: implemented new command line options --ext, --size, --width
+- Fix: exceptions on --help command line option.
+- Fix: some minor bug fixes.
+
+* Version 1.0.0.0
+- Initial.

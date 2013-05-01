@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace ytd
 {
@@ -10,6 +11,12 @@ namespace ytd
     {
         private delegate string ReadLineDelegate();
         private delegate ConsoleKeyInfo ReadKeyDelegate();
+        private static ManualResetEvent rendererEvent = new ManualResetEvent(false);
+
+        public static EventWaitHandle GetSyncObject
+        {
+            get { return rendererEvent; }
+        }
 
         /// <summary>
         /// http://stackoverflow.com/questions/57615/how-to-add-a-timeout-to-console-readline
@@ -40,22 +47,32 @@ namespace ytd
 
         public static char ReadKey(int secTimeOut, char @default)
         {
-            ReadKeyDelegate d = Console.ReadKey;
-            IAsyncResult result = d.BeginInvoke(null, null);
-            result.AsyncWaitHandle.WaitOne(secTimeOut * 1000); // timeout e.g. 15000 for 15 secs
+            rendererEvent.Reset();
 
-            if ( result.IsCompleted )
+            try
             {
-                ConsoleKeyInfo resultstr = d.EndInvoke(result);
-                //Console.WriteLine("Read: " + resultstr.KeyChar);
-                return resultstr.KeyChar;
+                ReadKeyDelegate d = Console.ReadKey;
+                IAsyncResult result = d.BeginInvoke(null, null);
+                result.AsyncWaitHandle.WaitOne(secTimeOut * 1000); // timeout e.g. 15000 for 15 secs
+
+                if ( result.IsCompleted )
+                {
+                    ConsoleKeyInfo resultstr = d.EndInvoke(result);
+                    //Console.WriteLine("Read: " + resultstr.KeyChar);
+                    return resultstr.KeyChar;
+                }
+                else
+                {
+                    //Console.WriteLine("Timed out!");
+                    //throw new TimedoutException("Timed Out!");
+
+                    Console.WriteLine();
+                    return @default;
+                }
             }
-            else
+            finally
             {
-                //Console.WriteLine("Timed out!");
-                //throw new TimedoutException("Timed Out!");
-
-                return @default;
+                rendererEvent.Set();
             }
         }
 
@@ -78,20 +95,29 @@ namespace ytd
 
         public static void RenderConsoleProgress(int percentage, char progressBarCharacter, ConsoleColor color, string message)
         {
-            Console.CursorVisible = false;
-            ConsoleColor originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = color;
-            Console.CursorLeft = 0;
-            int width = Console.WindowWidth - 1;
-            int newWidth = (int) ((width * percentage) / 100d);
-            string progBar = new string(progressBarCharacter, newWidth) + new string(' ', width - newWidth);
-            Console.Write(progBar);
-            if ( string.IsNullOrEmpty(message) ) message = string.Empty;
-            Console.CursorTop++;
-            OverwriteConsoleMessage(message);
-            Console.CursorTop--;
-            Console.ForegroundColor = originalColor;
-            Console.CursorVisible = true;
+            rendererEvent.Reset();
+
+            try 
+            {      
+		        Console.CursorVisible = false;
+                ConsoleColor originalColor = Console.ForegroundColor;
+                Console.ForegroundColor = color;
+                Console.CursorLeft = 0;
+                int width = Console.WindowWidth - 1;
+                int newWidth = (int) ((width * percentage) / 100d);
+                string progBar = new string(progressBarCharacter, newWidth) + new string(' ', width - newWidth);
+                Console.Write(progBar);
+                if ( string.IsNullOrEmpty(message) ) message = string.Empty;
+                Console.CursorTop++;
+                OverwriteConsoleMessage(message);
+                Console.CursorTop--;
+                Console.ForegroundColor = originalColor;
+                Console.CursorVisible = true;
+	        }
+	        finally
+	        {
+                rendererEvent.Set();
+	        }
         }
 
         private class NativeMethods
