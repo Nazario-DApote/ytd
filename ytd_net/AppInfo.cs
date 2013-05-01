@@ -56,5 +56,14 @@ namespace ytd
                 return attributes.Length == 0 ? "" : ((AssemblyCompanyAttribute) attributes[0]).Company;
             }
         }
+
+        public static string ExecutableName
+        {
+            get
+            {
+                string fullName = Assembly.GetEntryAssembly().Location;
+                return System.IO.Path.GetFileNameWithoutExtension(fullName);
+            }
+        }
     }
 }

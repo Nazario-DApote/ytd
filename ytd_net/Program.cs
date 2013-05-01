@@ -41,21 +41,22 @@ namespace ytd
             {
                 List<string> extra = p.Parse(args);
 
-                if ( !help && extra.Count < 1 )
+                if ( !help )
                 {
-                    ShowAppInfo();
-                    ShowHelp(p);
-                    Environment.Exit(-1);
+                    if ( (extra.Count == 0) )
+                        throw new ArgumentException("Mandatory parameter missing!");
+
+                    url = extra[0];
                 }
 
-                url = extra[0];
             }
             catch ( OptionException e )
             {
-                Console.Write("greet: ");
-                Console.WriteLine(e.Message);
-                Console.WriteLine("Try `greet --help' for more information.");
-                Environment.Exit(-1);
+                ShowError(e);
+            }
+            catch ( ArgumentException e )
+            {
+                ShowError(e);
             }
 
             // Execution
@@ -74,12 +75,14 @@ namespace ytd
                     else
                         DownloadVideo(url, fileName);
                 }
-                else
+                else if ( help )
                     ShowHelp(p);
+                else
+                    throw new ArgumentException("Invalid parameters!");
             }
-            catch ( Exception e)
+            catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                ShowError(e);
             }
             finally
             {
@@ -87,6 +90,13 @@ namespace ytd
                 WaitKeyPress();
                 #endif
             }
+        }
+
+        private static void ShowError(Exception e)
+        {
+            Console.WriteLine(e.Message);
+            Console.WriteLine("Try `{0} --help' for more information.", AppInfo.ExecutableName);
+            Environment.Exit(-1);
         }
 
         private static void DownloadVideoList(string listPath)
@@ -230,7 +240,7 @@ namespace ytd
 
         private static void ShowHelp(OptionSet p)
         {
-            Console.WriteLine("Usage: {0} [OPTIONS]+ <url> <filename>", AppInfo.ProductName);
+            Console.WriteLine("Usage: {0} [OPTIONS]+ <url>", AppInfo.ExecutableName);
             Console.WriteLine();
             Console.WriteLine("  {0,-26} {1}", "<url>", "the YouTube playlist url or video url.");
             Console.WriteLine();
