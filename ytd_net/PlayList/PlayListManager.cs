@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ytd.PlayList
 {
@@ -51,7 +51,7 @@ namespace ytd.PlayList
             _playList.Clear();
 
             Match m = regexPlayList.Match(url);
-            if(m.Success && m.Groups[1].Success)
+            if ( m.Success && m.Groups[1].Success )
             {
                 string feedUrl = string.Concat("http://gdata.youtube.com/feeds/api/playlists/", m.Groups[1].Value);
                 RssManager rm = new RssManager(feedUrl);
@@ -65,7 +65,7 @@ namespace ytd.PlayList
             {
                 foreach ( var video in _playList )
                 {
-                    if(full)
+                    if ( full )
                     {
                         sw.WriteLine("Title: {0}", video.Title);
                         sw.WriteLine("Description: {0}", video.Description);
