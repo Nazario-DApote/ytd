@@ -65,5 +65,15 @@ namespace ytd
                 return System.IO.Path.GetFileNameWithoutExtension(fullName);
             }
         }
+
+        public static string Author
+        {
+            get { return "Nazario D'Apote"; }
+        }
+
+        public static string AuthorEmail
+        {
+            get { return "nazario.dapote@gmail.com"; }
+        }
     }
 }

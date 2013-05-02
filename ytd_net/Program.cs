@@ -1,21 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using NDesk.Options;
-using ytd.PlayList;
-using ytd.Downloader;
-using System.IO;
 using System.ComponentModel;
-using System.Threading;
-using System.Collections.Specialized;
-using System.Drawing;
+using System.IO;
 using System.IO.Extensions;
+using System.Threading;
+using NDesk.Options;
+using ytd.Downloader;
+using ytd.PlayList;
+using System.Reflection;
 
 namespace ytd
 {
     internal class Program
     {
         private static bool help;
-        private static int verbose = 0;
+        private static int verbose;
         private static string playlist;
         private static bool full;
         private static bool download;
@@ -28,6 +27,7 @@ namespace ytd
 
         private static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(OnUnhandledException);
             var p = new OptionSet() {
                 { "p|playlist=", "get all video data from a playlist link and save them to VALUE", v => { playlist = v; full = true;} },
                 { "p1", "get only video urls from a playlist link and save them to VALUE", v => { playlist = v; full = false; } },
@@ -57,7 +57,6 @@ namespace ytd
                     if ( string.IsNullOrEmpty(videoExtension) )
                         videoExtension = "flv";
                 }
-
             }
             catch ( OptionException e )
             {
@@ -80,7 +79,12 @@ namespace ytd
                 else if ( download )
                 {
                     if ( filelist )
-                        DownloadVideoList(url);
+                    {
+                        if ( File.Exists(url) )
+                            DownloadVideoList(url);
+                        else
+                            throw new FileNotFoundException("File list not found!", url);
+                    }
                     else
                         DownloadVideo(url, fileName);
                 }
@@ -89,35 +93,53 @@ namespace ytd
                 else
                     throw new ArgumentException("Invalid parameters!");
             }
-            catch (Exception e)
+            catch ( Exception e )
             {
                 ShowError(e);
             }
+#if DEBUG
             finally
             {
-                #if DEBUG
                 WaitKeyPress();
-                #endif
             }
+#endif
+        }
+
+        private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            Console.WriteLine("Unhandled exception has occured!");
+            Console.WriteLine("Please report to author: {0}", AppInfo.AuthorEmail);
+            Type exceptionType = e.ExceptionObject.GetType();
+            Exception ex = e.ExceptionObject as Exception;
+            Debug("{0}: {1}", exceptionType.ToString(), ex.Message);
+            Environment.Exit(-1);
         }
 
         private static void ShowError(Exception e)
         {
             Console.WriteLine(e.Message);
+            Debug("StackTrace:\r\n{0}", e.StackTrace);
+
+            if ( e.InnerException != null )
+                Console.WriteLine(e.InnerException.Message);
+
             Console.WriteLine("Try `{0} --help' for more information.", AppInfo.ExecutableName);
             Environment.Exit(-1);
         }
 
         private static void DownloadVideoList(string listPath)
         {
-            using (StreamReader listReader = new StreamReader(listPath))
+            using ( StreamReader listReader = new StreamReader(listPath) )
             {
                 List<string> urlList = new List<string>();
-                string line = listReader.ReadLine();
+                string line = null;
+                while ( (line = listReader.ReadLine()) != null)
+                {
+                    bool isUri = Uri.IsWellFormedUriString(line, UriKind.RelativeOrAbsolute);
+                    if ( isUri )
+                        urlList.Add(line);
+                }
 
-                bool isUri = Uri.IsWellFormedUriString(line, UriKind.RelativeOrAbsolute);
-                if ( isUri )
-                    urlList.Add(line);
 
                 foreach ( var url in urlList )
                 {
@@ -129,7 +151,7 @@ namespace ytd
         private static void DownloadVideo(string url, string fileName)
         {
             Console.WriteLine("* Download YourTube video");
-          
+
             Console.WriteLine("Fetching video informations ...");
             List<YouTubeVideoQuality> videoList = YouTubeDownloader.GetYouTubeVideoUrls(url);
             if ( videoList.Count > 0 )
@@ -146,22 +168,22 @@ namespace ytd
                         fn = string.Concat(video.VideoTitle, ".", video.Extention);
 
                     Console.WriteLine("url: {0}", url);
-                    Console.WriteLine("fileName: {0}", fn);
+                    Console.WriteLine("fileName: \"{0}\"", fn);
 
                     if ( File.Exists(fn) )
                     {
-                        Console.Write("{0} already exists! Overwrite? (Y/n) ", fn);
-                        char res = ConsoleEx.ReadKey(5, 'y');
-                        if ( res.Equals('y') )
+                        Console.Write("\"{0}\" already exists! Overwrite? (y/N) ", fn);
+                        char res = ConsoleEx.ReadKey(5, 'n');
+                        if ( res.Equals('n') )
                             File.Delete(fn);
                         else
                             return;
                     }
 
                     downloadDone.Reset();
-                    Console.WriteLine("Video Title: {0}", video.VideoTitle);
+                    Console.WriteLine("Video Title: \"{0}\"", video.VideoTitle);
                     Console.WriteLine("File lenght: {0}", new FileSize(video.VideoSize).ToString(FileSizeUnit.B));
-                    Console.WriteLine("* Downloading {0} => {1}", ConsoleEx.CompactPath(video.DownloadUrl, 40), ConsoleEx.CompactPath(fileName, 40));
+                    Console.WriteLine("* Downloading {0} => \"{1}\"", ConsoleEx.CompactPath(video.DownloadUrl, 40), ConsoleEx.CompactPath(fileName, 40));
                     DownloadFile(video.DownloadUrl, fn);
                     downloadDone.WaitOne();
                 }

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
 namespace ytd
@@ -10,7 +8,9 @@ namespace ytd
     public static class ConsoleEx
     {
         private delegate string ReadLineDelegate();
+
         private delegate ConsoleKeyInfo ReadKeyDelegate();
+
         private static ManualResetEvent rendererEvent = new ManualResetEvent(false);
 
         public static EventWaitHandle GetSyncObject
@@ -59,6 +59,8 @@ namespace ytd
                 {
                     ConsoleKeyInfo resultstr = d.EndInvoke(result);
                     //Console.WriteLine("Read: " + resultstr.KeyChar);
+
+                    Console.WriteLine();
                     return resultstr.KeyChar;
                 }
                 else
@@ -97,9 +99,9 @@ namespace ytd
         {
             rendererEvent.Reset();
 
-            try 
-            {      
-		        Console.CursorVisible = false;
+            try
+            {
+                Console.CursorVisible = false;
                 ConsoleColor originalColor = Console.ForegroundColor;
                 Console.ForegroundColor = color;
                 Console.CursorLeft = 0;
@@ -113,11 +115,11 @@ namespace ytd
                 Console.CursorTop--;
                 Console.ForegroundColor = originalColor;
                 Console.CursorVisible = true;
-	        }
-	        finally
-	        {
+            }
+            finally
+            {
                 rendererEvent.Set();
-	        }
+            }
         }
 
         private class NativeMethods

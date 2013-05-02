@@ -16,7 +16,7 @@ namespace ytd.Downloader
 
         public static string Format(long millis)
         {
-            string format = "";
+            string format = string.Empty;
 
             for ( int i = 0; i < TimeUnitsValue.Length; i++ )
             {
@@ -28,9 +28,9 @@ namespace ytd.Downloader
 
             format = format.Trim(',', ' ');
 
-            if ( format == "" ) 
+            if ( string.IsNullOrEmpty(format) )
                 return "0 Sec";
-            else 
+            else
                 return format;
         }
     }
@@ -77,13 +77,13 @@ namespace ytd.Downloader
         {
             int index1 = UseLastIndexOf ? input.LastIndexOf(start, startIndex) :
                                           input.IndexOf(start, startIndex);
-            if ( index1 == -1 ) 
+            if ( index1 == -1 )
                 return string.Empty;
 
             index1 += start.Length;
             int index2 = input.IndexOf(end, index1);
 
-            if ( index2 == -1 ) 
+            if ( index2 == -1 )
                 return input.Substring(index1);
 
             return input.Substring(index1, index2 - index1);
@@ -161,7 +161,7 @@ namespace ytd.Downloader
             url = url.Substring(url.IndexOf("?") + 1);
             string[] props = url.Split('&');
 
-            string videoid = "";
+            string videoid = string.Empty;
             foreach ( string prop in props )
             {
                 if ( prop.StartsWith("v=") )
@@ -181,7 +181,7 @@ namespace ytd.Downloader
                 proxy.Credentials = CredentialCache.DefaultNetworkCredentials;
                 return proxy;
             }
-            else 
+            else
                 return null;
         }
 
@@ -191,7 +191,7 @@ namespace ytd.Downloader
             if ( p == null ) return null;
             WebProxy webProxy = null;
 
-            if ( p is WebProxy ) 
+            if ( p is WebProxy )
                 webProxy = p as WebProxy;
             else
             {

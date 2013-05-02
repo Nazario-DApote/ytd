@@ -810,7 +810,9 @@ namespace NDesk.Options
             bool process = true;
             OptionContext c = CreateOptionContext();
             c.OptionIndex = -1;
-            var def = GetOptionForName("<>");
+            Option def = null;
+            if(this.Contains("<>"))
+                def = this["<>"];
             var unprocessed =
                 from argument in arguments
                 where ++c.OptionIndex >= 0 && (process || def != null)
